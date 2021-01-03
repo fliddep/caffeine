@@ -465,7 +465,7 @@ public final class ReferenceTest {
 
     GcFinalization.awaitFullGc();
     awaitFullCleanup(cache);
-    cache.refresh(key);
+    cache.refresh(key).join();
     assertThat(cache.estimatedSize(), is(1L));
     assertThat(cache.getIfPresent(key), is(not(value)));
 
@@ -487,7 +487,7 @@ public final class ReferenceTest {
     Integer key = context.firstKey();
     context.clear();
     GcFinalization.awaitFullGc();
-    cache.refresh(key);
+    cache.refresh(key).join();
     context.disableRejectingCacheWriter();
     assertThat(cache.asMap().isEmpty(), is(false));
   }

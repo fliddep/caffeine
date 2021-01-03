@@ -39,6 +39,8 @@ public final class HasStats extends TypeSafeDiagnosingMatcher<CacheContext> {
 
   final long count;
   final StatsType type;
+
+  boolean describe;
   DescriptionBuilder desc;
 
   private HasStats(StatsType type, long count) {
@@ -67,8 +69,14 @@ public final class HasStats extends TypeSafeDiagnosingMatcher<CacheContext> {
       }
     }
 
-    CacheStats stats = context.stats();
     desc = new DescriptionBuilder(description);
+    boolean matches = matches(context);
+    describe = true;
+    return matches;
+  }
+
+  private boolean matches(CacheContext context) throws AssertionError {
+    CacheStats stats = context.stats();
     switch (type) {
       case HIT:
         return awaitStatistic(context, stats::hitCount);
@@ -94,6 +102,9 @@ public final class HasStats extends TypeSafeDiagnosingMatcher<CacheContext> {
       } else if (context.cacheExecutor != CacheExecutor.DIRECT)  {
         await().pollInSameThread().until(statistic, is(count));
         return true;
+      }
+      if (describe) {
+        is(count).describeMismatch(statistic.call(), desc.getDescription());
       }
       return false;
     } catch (Exception e) {

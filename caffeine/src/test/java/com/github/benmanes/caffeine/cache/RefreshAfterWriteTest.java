@@ -351,9 +351,50 @@ public final class RefreshAfterWriteTest {
     cache.invalidate(key);
     refresh.set(true);
 
-    await().until(() -> cache.getIfPresent(key), is(refreshed));
+    var executor = (TrackingExecutor) context.executor();
+    await().until(() -> executor.submitted() == executor.completed());
+
+    if (context.implementation() == Implementation.Guava) {
+      // Guava does not protect against ABA when the entry was removed by allowing a possibly
+      // stale value from being inserted.
+      assertThat(cache.getIfPresent(key), is(refreshed));
+    } else {
+      // Maintain linearizability by discarding the refresh if completing after an explicit removal
+      assertThat(cache.getIfPresent(key), is(nullValue()));
+    }
+
     await().until(() -> cache, hasRemovalNotifications(context, 1, RemovalCause.EXPLICIT));
     assertThat(context, both(hasLoadSuccessCount(1)).and(hasLoadFailureCount(0)));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine,
+      loader = Loader.ASYNC_INCOMPLETE, refreshAfterWrite = Expire.ONE_MINUTE)
+  public void refresh(LoadingCache<Integer, Integer> cache, CacheContext context) {
+    cache.put(context.absentKey(), context.absentValue());
+    var executor = (TrackingExecutor) context.executor();
+    int submitted;
+
+    // trigger an automatic refresh
+    submitted = executor.submitted();
+    context.ticker().advance(2, TimeUnit.MINUTES);
+    cache.getIfPresent(context.absentKey());
+    assertThat(executor.submitted(), is(submitted + 1));
+
+    // return in-flight future
+    var future1 = cache.refresh(context.absentKey());
+    assertThat(executor.submitted(), is(submitted + 1));
+    future1.complete(-context.absentValue());
+
+    // trigger a new automatic refresh
+    submitted = executor.submitted();
+    context.ticker().advance(2, TimeUnit.MINUTES);
+    cache.getIfPresent(context.absentKey());
+    assertThat(executor.submitted(), is(submitted + 1));
+
+    var future2 = cache.refresh(context.absentKey());
+    assertThat(future2, is(not(sameInstance(future1))));
+    future2.cancel(true);
   }
 
   /* --------------- Policy --------------- */

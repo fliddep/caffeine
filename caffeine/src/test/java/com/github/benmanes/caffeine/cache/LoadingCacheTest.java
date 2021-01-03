@@ -52,10 +52,10 @@ import com.github.benmanes.caffeine.cache.testing.CacheContext;
 import com.github.benmanes.caffeine.cache.testing.CacheProvider;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.CacheExecutor;
-import com.github.benmanes.caffeine.cache.testing.CacheSpec.Compute;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Implementation;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Listener;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Loader;
+import com.github.benmanes.caffeine.cache.testing.CacheSpec.Maximum;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Population;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.ReferenceType;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Writer;
@@ -361,16 +361,29 @@ public final class LoadingCacheTest {
   @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
   @Test(dataProvider = "caches", expectedExceptions = NullPointerException.class)
   public void refresh_null(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    cache.refresh(null);
+    cache.refresh(null).join();
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(loader = Loader.ASYNC_INCOMPLETE, implementation = Implementation.Caffeine)
+  public void refresh_dedupe(LoadingCache<Integer, Integer> cache, CacheContext context) {
+    var key = context.original().isEmpty() ? context.absentKey() : context.firstKey();
+    var future1 = cache.refresh(key);
+    var future2 = cache.refresh(key);
+    assertThat(future1, is(sameInstance(future2)));
+
+    future1.complete(-key);
+    assertThat(cache.getIfPresent(key), is(-key));
   }
 
   @CheckNoWriter
   @Test(dataProvider = "caches")
-  @CacheSpec(implementation = Implementation.Caffeine, compute=Compute.SYNC,
+  @CacheSpec(implementation = Implementation.Caffeine,
       executor = CacheExecutor.DIRECT, loader = Loader.NULL,
       population = { Population.SINGLETON, Population.PARTIAL, Population.FULL })
   public void refresh_remove(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    cache.refresh(context.firstKey());
+    var future = cache.refresh(context.firstKey());
+    assertThat(future.join(), is(nullValue()));
     assertThat(cache.estimatedSize(), is(context.initialSize() - 1));
     assertThat(cache.getIfPresent(context.firstKey()), is(nullValue()));
     assertThat(cache, hasRemovalNotifications(context, 1, RemovalCause.EXPLICIT));
@@ -382,26 +395,53 @@ public final class LoadingCacheTest {
       removalListener = { Listener.DEFAULT, Listener.REJECTING },
       population = { Population.SINGLETON, Population.PARTIAL, Population.FULL })
   public void refresh_failure(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    // Shouldn't leak exception to caller and should retain stale entry
-    cache.refresh(context.absentKey());
-    cache.refresh(context.firstKey());
+    // Shouldn't leak exception to caller nor retain the future; should retain the stale entry
+    var future1 = cache.refresh(context.absentKey());
+    var future2 = cache.refresh(context.firstKey());
+    var future3 = cache.refresh(context.firstKey());
+    assertThat(future2, is(not(sameInstance(future3))));
+    assertThat(future1.isCompletedExceptionally(), is(true));
+    assertThat(future2.isCompletedExceptionally(), is(true));
+    assertThat(future3.isCompletedExceptionally(), is(true));
     assertThat(cache.estimatedSize(), is(context.initialSize()));
-    assertThat(context, both(hasLoadSuccessCount(0)).and(hasLoadFailureCount(2)));
+    assertThat(context, both(hasLoadSuccessCount(0)).and(hasLoadFailureCount(3)));
+  }
+
+  @CheckNoWriter
+  @Test(dataProvider = "caches")
+  @CacheSpec(loader = Loader.ASYNC_INCOMPLETE, implementation = Implementation.Caffeine,
+      removalListener = { Listener.DEFAULT, Listener.REJECTING })
+  public void refresh_cancel(LoadingCache<Integer, Integer> cache, CacheContext context) {
+    var key = context.original().isEmpty() ? context.absentKey() : context.firstKey();
+    var future1 = cache.refresh(key);
+    assertThat(future1.isDone(), is(false));
+    future1.cancel(true);
+
+    var future2 = cache.refresh(key);
+    assertThat(future1, is(not(sameInstance(future2))));
+
+    future2.cancel(false);
+    assertThat(cache.asMap(), is(equalTo(context.original())));
   }
 
   @CheckNoWriter
   @CacheSpec(loader = Loader.NULL)
   @Test(dataProvider = "caches")
   public void refresh_absent_null(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    cache.refresh(context.absentKey());
+    var future = cache.refresh(context.absentKey());
+    assertThat(future.join(), is(nullValue()));
     assertThat(cache.estimatedSize(), is(context.initialSize()));
   }
 
   @CheckNoWriter
   @Test(dataProvider = "caches")
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
+  @CacheSpec(
+      maximumSize = Maximum.UNREACHABLE,
+      removalListener = { Listener.DEFAULT, Listener.REJECTING }, population = Population.SINGLETON)
   public void refresh_absent(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    cache.refresh(context.absentKey());
+    Integer key = context.absentKey();
+    var future = cache.refresh(key);
+    assertThat(future.join(), is(not(nullValue())));
     assertThat(cache.estimatedSize(), is(1 + context.initialSize()));
     assertThat(context, both(hasMissCount(0)).and(hasHitCount(0)));
     assertThat(context, both(hasLoadSuccessCount(1)).and(hasLoadFailureCount(0)));
@@ -416,7 +456,8 @@ public final class LoadingCacheTest {
       population = { Population.SINGLETON, Population.PARTIAL, Population.FULL })
   public void refresh_present_null(LoadingCache<Integer, Integer> cache, CacheContext context) {
     for (Integer key : context.firstMiddleLastKeys()) {
-      cache.refresh(key);
+      var future = cache.refresh(key);
+      assertThat(future.join(), is(nullValue()));
     }
     int count = context.firstMiddleLastKeys().size();
     assertThat(context, both(hasMissCount(0)).and(hasHitCount(0)));
@@ -435,7 +476,8 @@ public final class LoadingCacheTest {
   public void refresh_present_sameValue(
       LoadingCache<Integer, Integer> cache, CacheContext context) {
     for (Integer key : context.firstMiddleLastKeys()) {
-      cache.refresh(key);
+      var future = cache.refresh(key);
+      assertThat(future.join(), is(context.original().get(key)));
     }
     int count = context.firstMiddleLastKeys().size();
     assertThat(context, both(hasMissCount(0)).and(hasHitCount(0)));
@@ -455,7 +497,9 @@ public final class LoadingCacheTest {
   public void refresh_present_differentValue(
       LoadingCache<Integer, Integer> cache, CacheContext context) {
     for (Integer key : context.firstMiddleLastKeys()) {
-      cache.refresh(key);
+      var future = cache.refresh(key);
+      assertThat(future.join(), is(key));
+
       // records a hit
       assertThat(cache.get(key), is(key));
     }
@@ -481,10 +525,12 @@ public final class LoadingCacheTest {
     });
 
     cache.put(key, original);
-    cache.refresh(key);
+    var future = cache.refresh(key);
     assertThat(cache.asMap().put(key, updated), is(original));
 
     refresh.set(true);
+    future.join();
+
     await().until(() -> context.consumedNotifications().size(), is(2));
     List<Integer> removed = context.consumedNotifications().stream()
         .map(RemovalNotification::getValue).collect(toList());
@@ -509,11 +555,13 @@ public final class LoadingCacheTest {
     });
 
     cache.put(key, original);
-    cache.refresh(key);
+    var future = cache.refresh(key);
     cache.invalidate(key);
 
     refresh.set(true);
-    await().until(() -> cache.getIfPresent(key), is(refreshed));
+    future.join();
+
+    assertThat(cache.getIfPresent(key), is(nullValue()));
     await().until(() -> cache, hasRemovalNotifications(context, 1, RemovalCause.EXPLICIT));
     assertThat(context, both(hasLoadSuccessCount(1)).and(hasLoadFailureCount(0)));
   }
