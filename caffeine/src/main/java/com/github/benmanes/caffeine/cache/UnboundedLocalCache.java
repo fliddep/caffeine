@@ -24,6 +24,8 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Collection;
@@ -38,7 +40,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -57,6 +58,7 @@ import com.github.benmanes.caffeine.cache.stats.StatsCounter;
  */
 final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   static final Logger logger = System.getLogger(UnboundedLocalCache.class.getName());
+  static final VarHandle REFRESHES;
 
   @Nullable final RemovalListener<K, V> removalListener;
   final ConcurrentHashMap<K, V> data;
@@ -69,17 +71,25 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   @Nullable Set<K> keySet;
   @Nullable Collection<V> values;
   @Nullable Set<Entry<K, V>> entrySet;
-  AtomicReference<ConcurrentMap<Object, CompletableFuture<?>>> refreshes;
+  @Nullable volatile ConcurrentMap<Object, CompletableFuture<?>> refreshes;
 
   UnboundedLocalCache(Caffeine<? super K, ? super V> builder, boolean async) {
     this.data = new ConcurrentHashMap<>(builder.getInitialCapacity());
     this.statsCounter = builder.getStatsCounterSupplier().get();
     this.removalListener = builder.getRemovalListener(async);
     this.isRecordingStats = builder.isRecordingStats();
-    this.refreshes = new AtomicReference<>();
     this.writer = builder.getCacheWriter();
     this.executor = builder.getExecutor();
     this.ticker = builder.getTicker();
+  }
+
+  static {
+    try {
+      REFRESHES = MethodHandles.lookup()
+          .findVarHandle(UnboundedLocalCache.class, "refreshes", ConcurrentMap.class);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
+    }
   }
 
   @Override
@@ -193,14 +203,22 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   @Override
   @SuppressWarnings("NullAway")
   public ConcurrentMap<Object, CompletableFuture<?>> refreshes() {
-    var pending = refreshes.get();
+    var pending = refreshes;
     if (pending == null) {
       pending = new ConcurrentHashMap<>();
-      if (!refreshes.compareAndSet(null, pending)) {
-        pending = refreshes.get();
+      if (!REFRESHES.compareAndSet(this, null, pending)) {
+        pending = refreshes;
       }
     }
     return pending;
+  }
+
+  /** Invalidate the in-flight refresh. */
+  void discardRefresh(Object keyReference) {
+    var pending = refreshes;
+    if (pending != null) {
+      pending.remove(keyReference);
+    }
   }
 
   @Override
@@ -304,6 +322,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
         oldValue[0] = value;
       }
 
+      discardRefresh(k);
       return newValue;
     });
     if (oldValue[0] != null) {
@@ -351,6 +370,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
         oldValue[0] = value;
       }
 
+      discardRefresh(k);
       return newValue;
     });
     if (oldValue[0] != null) {
@@ -373,13 +393,10 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
   @Override
   public void clear() {
-    if (!hasRemovalListener() && (writer == CacheWriter.disabledWriter())) {
+    if (!hasRemovalListener()
+        && (writer == CacheWriter.disabledWriter()
+        && ((refreshes == null) || refreshes.isEmpty()))) {
       data.clear();
-
-      var pending = refreshes.get();
-      if (pending != null) {
-        pending.clear();
-      }
       return;
     }
     for (K key : data.keySet()) {
@@ -421,6 +438,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
         if (value != v) {
           writer.write(key, value);
         }
+        discardRefresh(key);
         oldValue[0] = v;
         return value;
       });
@@ -466,16 +484,13 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
       oldValue[0] = data.remove(key);
     } else {
       data.computeIfPresent(castKey, (k, v) -> {
-        writer.delete(castKey, v, RemovalCause.EXPLICIT);
+        writer.delete(k, v, RemovalCause.EXPLICIT);
+        discardRefresh(k);
         oldValue[0] = v;
         return null;
       });
     }
 
-    var pending = refreshes.get();
-    if (pending != null) {
-      pending.remove(key);
-    }
     if (hasRemovalListener() && (oldValue[0] != null)) {
       notifyRemoval(castKey, oldValue[0], RemovalCause.EXPLICIT);
     }
@@ -497,7 +512,8 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
     data.computeIfPresent(castKey, (k, v) -> {
       if (v.equals(value)) {
-        writer.delete(castKey, v, RemovalCause.EXPLICIT);
+        writer.delete(k, v, RemovalCause.EXPLICIT);
+        discardRefresh(k);
         oldValue[0] = v;
         return null;
       }
@@ -505,14 +521,8 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
     });
 
     boolean removed = (oldValue[0] != null);
-    if (removed) {
-      var pending = refreshes.get();
-      if (pending != null) {
-        pending.remove(key);
-      }
-      if (hasRemovalListener()) {
-        notifyRemoval(castKey, oldValue[0], RemovalCause.EXPLICIT);
-      }
+    if (removed && hasRemovalListener()) {
+      notifyRemoval(castKey, oldValue[0], RemovalCause.EXPLICIT);
     }
 
     return removed;
@@ -528,6 +538,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
       if (value != v) {
         writer.write(key, value);
       }
+      discardRefresh(k);
       oldValue[0] = v;
       return value;
     });
@@ -551,6 +562,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
           writer.write(key, newValue);
         }
         prev[0] = v;
+        discardRefresh(k);
         return newValue;
       }
       return v;

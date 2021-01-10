@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
@@ -61,7 +60,7 @@ public final class HasRemovalNotifications<K, V> extends TypeSafeDiagnosingMatch
     DescriptionBuilder desc = new DescriptionBuilder(description);
 
     if (context.removalListenerType == Listener.CONSUMING) {
-      List<RemovalNotification<Integer, Integer>> notifications = context.consumedNotifications();
+      var notifications = context.consumedNotifications();
       ForkJoinPool.commonPool().awaitQuiescence(10, TimeUnit.SECONDS);
 
       int size = 0;

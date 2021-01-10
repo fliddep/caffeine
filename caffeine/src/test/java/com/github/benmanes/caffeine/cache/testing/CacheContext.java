@@ -23,9 +23,9 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -351,7 +351,7 @@ public final class CacheContext {
     return requireNonNull(removalListener);
   }
 
-  public List<RemovalNotification<Integer, Integer>> consumedNotifications() {
+  public Collection<RemovalNotification<Integer, Integer>> consumedNotifications() {
     return (removalListenerType() == Listener.CONSUMING)
         ? ((ConsumingRemovalListener<Integer, Integer>) removalListener).evicted()
         : Collections.emptyList();
