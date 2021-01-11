@@ -64,6 +64,7 @@ import org.testng.annotations.Test;
 import com.github.benmanes.caffeine.cache.testing.CacheContext;
 import com.github.benmanes.caffeine.cache.testing.CacheProvider;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec;
+import com.github.benmanes.caffeine.cache.testing.CacheSpec.Implementation;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Listener;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Population;
 import com.github.benmanes.caffeine.cache.testing.CacheValidationListener;
@@ -750,10 +751,8 @@ public final class AsyncAsMapTest {
     assertThat(cache.asMap().size(), is(context.original().size()));
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = IllegalStateException.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine)
   public void computeIfAbsent_recursive(AsyncCache<Integer, Integer> cache, CacheContext context) {
     Function<Integer, CompletableFuture<Integer>> mappingFunction =
         new Function<Integer, CompletableFuture<Integer>>() {
@@ -761,22 +760,25 @@ public final class AsyncAsMapTest {
             return cache.asMap().computeIfAbsent(key, this);
           }
         };
-    cache.asMap().computeIfAbsent(context.absentKey(), mappingFunction);
+    try {
+      cache.asMap().computeIfAbsent(context.absentKey(), mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = IllegalStateException.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine)
   public void computeIfAbsent_pingpong(AsyncCache<Integer, Integer> cache, CacheContext context) {
     Function<Integer, CompletableFuture<Integer>> mappingFunction =
         new Function<Integer, CompletableFuture<Integer>>() {
           @Override public CompletableFuture<Integer> apply(Integer key) {
-            Integer value = context.original().get(key);
-            return cache.asMap().computeIfAbsent(value, this);
+            return cache.asMap().computeIfAbsent(-key, this);
           }
         };
-    cache.asMap().computeIfAbsent(context.absentKey(), mappingFunction);
+    try {
+      cache.asMap().computeIfAbsent(context.absentKey(), mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
   @Test(dataProvider = "caches")
@@ -970,10 +972,8 @@ public final class AsyncAsMapTest {
     assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.EXPLICIT));
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = StackOverflowError.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine)
   public void compute_recursive(AsyncCache<Integer, Integer> cache, CacheContext context) {
     BiFunction<Integer, CompletableFuture<Integer>, CompletableFuture<Integer>> mappingFunction =
         new BiFunction<Integer, CompletableFuture<Integer>, CompletableFuture<Integer>>() {
@@ -982,26 +982,30 @@ public final class AsyncAsMapTest {
             return cache.asMap().compute(key, this);
           }
         };
-    cache.asMap().compute(context.absentKey(), mappingFunction);
+    try {
+      cache.asMap().compute(context.absentKey(), mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(population = { Population.SINGLETON, Population.PARTIAL, Population.FULL },
-      removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = StackOverflowError.class)
+  @CacheSpec(population = Population.EMPTY, implementation = Implementation.Caffeine)
+  @Test(dataProvider = "caches")
   public void compute_pingpong(AsyncCache<Integer, Integer> cache, CacheContext context) {
+    var key1 = 1;
+    var key2 = 2;
     BiFunction<Integer, CompletableFuture<Integer>, CompletableFuture<Integer>> mappingFunction =
         new BiFunction<Integer, CompletableFuture<Integer>, CompletableFuture<Integer>>() {
           @Override public CompletableFuture<Integer> apply(
               Integer key, CompletableFuture<Integer> value) {
-            return cache.asMap().computeIfPresent(context.lastKey(), this);
+            return cache.asMap().compute((key == key1) ? key2 : key1, this);
           }
         };
-    cache.asMap().computeIfPresent(context.firstKey(), mappingFunction);
+    try {
+      cache.asMap().compute(key1, mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
-  @CheckNoStats
   @Test(dataProvider = "caches")
   @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
   public void compute_error(AsyncCache<Integer, Integer> cache, CacheContext context) {
@@ -1014,8 +1018,8 @@ public final class AsyncAsMapTest {
 
     assertThat(context, both(hasMissCount(0)).and(hasHitCount(0)));
     assertThat(context, both(hasLoadSuccessCount(0)).and(hasLoadFailureCount(0)));
-    assertThat(cache.asMap().computeIfPresent(context.absentKey(),
-        (k, v) -> CompletableFuture.completedFuture(-k)), is(nullValue()));
+    var future = CompletableFuture.completedFuture(-context.absentKey());
+    assertThat(cache.asMap().compute(context.absentKey(), (k, v) -> future), is(future));
   }
 
   @CheckNoStats

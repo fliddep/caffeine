@@ -58,6 +58,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.testng.Assert;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
@@ -1095,31 +1096,32 @@ public final class AsMapTest {
     assertThat(context, both(hasLoadSuccessCount(0)).and(hasLoadFailureCount(1)));
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = IllegalStateException.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine)
   public void computeIfAbsent_recursive(Map<Integer, Integer> map, CacheContext context) {
     Function<Integer, Integer> mappingFunction = new Function<Integer, Integer>() {
       @Override public Integer apply(Integer key) {
         return map.computeIfAbsent(key, this);
       }
     };
-    map.computeIfAbsent(context.absentKey(), mappingFunction);
+    try {
+      map.computeIfAbsent(context.absentKey(), mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = IllegalStateException.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine)
   public void computeIfAbsent_pingpong(Map<Integer, Integer> map, CacheContext context) {
     Function<Integer, Integer> mappingFunction = new Function<Integer, Integer>() {
       @Override public Integer apply(Integer key) {
-        Integer value = context.original().get(key);
-        return map.computeIfAbsent(value, this);
+        return map.computeIfAbsent(-key, this);
       }
     };
-    map.computeIfAbsent(context.absentKey(), mappingFunction);
+    try {
+      map.computeIfAbsent(context.absentKey(), mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
   @Test(dataProvider = "caches")
@@ -1358,10 +1360,8 @@ public final class AsMapTest {
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.EXPLICIT));
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = StackOverflowError.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(implementation = Implementation.Caffeine)
   public void compute_recursive(Map<Integer, Integer> map, CacheContext context) {
     BiFunction<Integer, Integer, Integer> mappingFunction =
         new BiFunction<Integer, Integer, Integer>() {
@@ -1369,34 +1369,40 @@ public final class AsMapTest {
             return map.compute(key, this);
           }
         };
-    map.compute(context.absentKey(), mappingFunction);
+    try {
+      map.compute(context.absentKey(), mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
-  // FIXME: Requires JDK8 release with JDK-8062841 fix
-  @CheckNoStats
-  @CacheSpec(population = { Population.SINGLETON, Population.PARTIAL, Population.FULL },
-      removalListener = { Listener.DEFAULT, Listener.REJECTING })
-  @Test(enabled = false, dataProvider = "caches", expectedExceptions = StackOverflowError.class)
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY, implementation = Implementation.Caffeine)
   public void compute_pingpong(Map<Integer, Integer> map, CacheContext context) {
+    var key1 = 1;
+    var key2 = 2;
     BiFunction<Integer, Integer, Integer> mappingFunction =
         new BiFunction<Integer, Integer, Integer>() {
           @Override public Integer apply(Integer key, Integer value) {
-            return map.computeIfPresent(context.lastKey(), this);
+            return map.compute((key == key1) ? key2 : key1, this);
           }
         };
-    map.computeIfPresent(context.firstKey(), mappingFunction);
+    try {
+      map.compute(key1, mappingFunction);
+      Assert.fail();
+    } catch (StackOverflowError | IllegalStateException e) { /* ignored */ }
   }
 
   @CacheSpec
   @Test(dataProvider = "caches")
   public void compute_error(Map<Integer, Integer> map, CacheContext context) {
     try {
-      map.compute(context.absentKey(), (key, value) -> { throw new Error(); });
-    } catch (Error e) {}
+      map.compute(context.absentKey(), (key, value) -> { throw new IllegalStateException(); });
+      Assert.fail();
+    } catch (IllegalStateException e) { /* ignored */ }
     assertThat(map, is(equalTo(context.original())));
     assertThat(context, both(hasMissCount(0)).and(hasHitCount(0)));
     assertThat(context, both(hasLoadSuccessCount(0)).and(hasLoadFailureCount(1)));
-    assertThat(map.computeIfPresent(context.absentKey(), (k, v) -> -k), is(nullValue()));
+    assertThat(map.compute(context.absentKey(), (k, v) -> -k), is(-context.absentKey()));
   }
 
   @CheckNoWriter
