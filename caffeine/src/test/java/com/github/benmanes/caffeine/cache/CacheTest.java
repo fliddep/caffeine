@@ -68,7 +68,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Streams;
 import com.google.common.primitives.Ints;
 
 /**
@@ -415,8 +414,7 @@ public final class CacheTest {
   @CheckNoWriter
   @Test(dataProvider = "caches")
   @CacheSpec(population = { Population.SINGLETON, Population.PARTIAL, Population.FULL },
-      removalListener = { Listener.DEFAULT, Listener.REJECTING },
-      implementation = Implementation.Guava)
+      removalListener = { Listener.DEFAULT, Listener.REJECTING })
   public void getAll_duplicates(Cache<Integer, Integer> cache, CacheContext context) {
     Set<Integer> absentKeys = ImmutableSet.copyOf(Iterables.limit(context.absentKeys(),
         Ints.saturatedCast(context.maximum().max() - context.initialSize())));
@@ -424,8 +422,18 @@ public final class CacheTest {
         context.original().keySet(), context.original().keySet());
     Map<Integer, Integer> result = cache.getAll(keys, bulkMappingFunction());
 
-    assertThat(context, hasMissCount(absentKeys.size()));
-    assertThat(context, hasHitCount(context.initialSize()));
+    long hitCount, missCount;
+    if (context.implementation() == Implementation.Guava) {
+      // Guava does not skip duplicates
+      hitCount = 2L * context.initialSize();
+      missCount = 2L * absentKeys.size();
+    } else {
+      hitCount = context.initialSize();
+      missCount = absentKeys.size();
+    }
+
+    assertThat(context, hasHitCount(hitCount));
+    assertThat(context, hasMissCount(missCount));
     assertThat(result.keySet(), is(equalTo(ImmutableSet.copyOf(keys))));
     assertThat(context, both(hasLoadSuccessCount(1)).and(hasLoadFailureCount(0)));
   }
@@ -507,9 +515,9 @@ public final class CacheTest {
     assertThat(result, is(equalTo(ImmutableMap.of(key, value))));
   }
 
-  static Function<Iterable<? extends Integer>, Map<Integer, Integer>> bulkMappingFunction() {
+  static Function<Set<? extends Integer>, Map<Integer, Integer>> bulkMappingFunction() {
     return keys -> {
-      Map<Integer, Integer> result = Streams.stream(keys).collect(toMap(identity(), key -> -key));
+      Map<Integer, Integer> result = keys.stream().collect(toMap(identity(), key -> -key));
       CacheSpec.interner.get().putAll(result);
       return result;
     };
