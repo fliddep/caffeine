@@ -270,10 +270,18 @@ public final class CacheTest {
         context.original().keySet(), context.original().keySet());
     Map<Integer, Integer> result = cache.getAllPresent(keys);
 
-    int misses = context.absentKeys().size();
-    int hits = context.original().keySet().size();
+    long hitCount, missCount;
+    if (context.implementation() == Implementation.Guava) {
+      // Guava does not skip duplicates
+      hitCount = 2L * context.initialSize();
+      missCount = 2L * context.absentKeys().size();
+    } else {
+      hitCount = context.initialSize();
+      missCount = context.absentKeys().size();
+    }
+    assertThat(context, hasHitCount(hitCount));
+    assertThat(context, hasMissCount(missCount));
     assertThat(result, is(equalTo(context.original())));
-    assertThat(context, both(hasMissCount(misses)).and(hasHitCount(hits)));
     assertThat(context, both(hasLoadSuccessCount(0)).and(hasLoadFailureCount(0)));
   }
 

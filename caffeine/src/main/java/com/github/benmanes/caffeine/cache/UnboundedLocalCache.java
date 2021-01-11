@@ -119,7 +119,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   }
 
   @Override
-  public @Nullable V getIfPresentQuietly(Object key, long[/* 1 */] writeTime) {
+  public @Nullable V getIfPresentQuietly(K key, long[/* 1 */] writeTime) {
     return data.get(key);
   }
 
@@ -129,7 +129,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   }
 
   @Override
-  public Map<K, V> getAllPresent(Iterable<?> keys) {
+  public Map<K, V> getAllPresent(Iterable<? extends K> keys) {
     Map<Object, Object> result = new LinkedHashMap<>();
     for (Object key : keys) {
       result.put(key, null);
