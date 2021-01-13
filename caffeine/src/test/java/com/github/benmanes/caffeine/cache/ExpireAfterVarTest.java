@@ -494,7 +494,8 @@ public final class ExpireAfterVarTest {
       VarExpiration<Integer, Integer> expireAfterVar) {
     Integer key = context.absentKey();
     Integer value = context.absentValue();
-    assertThat(expireAfterVar.putIfAbsent(key, value, Duration.ofMinutes(2L)), is(true));
+    Integer result = expireAfterVar.putIfAbsent(key, value, Duration.ofMinutes(2L));
+    assertThat(result, is(nullValue()));
 
     assertThat(cache.getIfPresent(key), is(value));
     assertThat(expireAfterVar.getExpiresAfter(key), is(Optional.of(Duration.ofMinutes(2L))));
@@ -511,7 +512,8 @@ public final class ExpireAfterVarTest {
       VarExpiration<Integer, Integer> expireAfterVar) {
     Integer key = context.firstKey();
     Integer value = context.absentValue();
-    assertThat(expireAfterVar.putIfAbsent(key, value, Duration.ofMinutes(2L)), is(false));
+    Integer result = expireAfterVar.putIfAbsent(key, value, Duration.ofMinutes(2L));
+    assertThat(result, is(context.original().get(key)));
 
     assertThat(cache.getIfPresent(key), is(context.original().get(key)));
     assertThat(expireAfterVar.getExpiresAfter(key), is(Optional.of(Duration.ofMinutes(1L))));
@@ -575,7 +577,8 @@ public final class ExpireAfterVarTest {
       VarExpiration<Integer, Integer> expireAfterVar) {
     Integer key = context.absentKey();
     Integer value = context.absentValue();
-    expireAfterVar.put(key, value, Duration.ofMinutes(2L));
+    Integer oldValue = expireAfterVar.put(key, value, Duration.ofMinutes(2L));
+    assertThat(oldValue, is(nullValue()));
 
     assertThat(cache.getIfPresent(key), is(value));
     assertThat(expireAfterVar.getExpiresAfter(key), is(Optional.of(Duration.ofMinutes(2L))));
@@ -592,7 +595,8 @@ public final class ExpireAfterVarTest {
       VarExpiration<Integer, Integer> expireAfterVar) {
     Integer key = context.firstKey();
     Integer value = context.absentValue();
-    expireAfterVar.put(key, value, Duration.ofMinutes(2L));
+    Integer oldValue = expireAfterVar.put(key, value, Duration.ofMinutes(2L));
+    assertThat(oldValue, is(context.original().get(key)));
 
     assertThat(cache.getIfPresent(key), is(value));
     assertThat(expireAfterVar.getExpiresAfter(key), is(Optional.of(Duration.ofMinutes(2L))));

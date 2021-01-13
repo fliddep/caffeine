@@ -93,6 +93,12 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   }
 
   @Override
+  @SuppressWarnings("NullAway")
+  public Expiry<K, V> expiry() {
+    return null;
+  }
+
+  @Override
   public boolean hasWriteTime() {
     return false;
   }
@@ -333,7 +339,8 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
   @Override
   public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction,
-      boolean recordMiss, boolean recordLoad, boolean recordLoadFailure) {
+      @Nullable Expiry<K, V> expiry, boolean recordMiss,
+      boolean recordLoad, boolean recordLoadFailure) {
     requireNonNull(remappingFunction);
     return remap(key, statsAware(remappingFunction, recordMiss, recordLoad, recordLoadFailure));
   }
