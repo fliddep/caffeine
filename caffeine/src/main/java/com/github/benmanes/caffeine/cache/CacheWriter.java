@@ -15,7 +15,6 @@
  */
 package com.github.benmanes.caffeine.cache;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -40,7 +39,7 @@ public interface CacheWriter<K, V> {
    * @param value the value associated with {@code key} that should be written
    * @throws RuntimeException or Error, in which case the mapping is unchanged
    */
-  void write(@NonNull K key, @NonNull V value);
+  void write(K key, V value);
 
   /**
    * Deletes the value corresponding to the {@code key} from the external resource. The cache will
@@ -51,7 +50,7 @@ public interface CacheWriter<K, V> {
    * @param cause the reason for which the entry was removed
    * @throws RuntimeException or Error, in which case the mapping is unchanged
    */
-  void delete(@NonNull K key, @Nullable V value, @NonNull RemovalCause cause);
+  void delete(K key, @Nullable V value, RemovalCause cause);
 
   /**
    * Returns a writer that does nothing.
@@ -60,7 +59,7 @@ public interface CacheWriter<K, V> {
    * @param <V> the type of values
    * @return a writer that performs no operations
    */
-  static @NonNull <K, V> CacheWriter<K, V> disabledWriter() {
+  static <K, V> CacheWriter<K, V> disabledWriter() {
     @SuppressWarnings("unchecked")
     CacheWriter<K, V> writer = (CacheWriter<K, V>) DisabledWriter.INSTANCE;
     return writer;
