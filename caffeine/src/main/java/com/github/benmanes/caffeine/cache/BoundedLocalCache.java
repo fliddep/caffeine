@@ -90,8 +90,8 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
  * @param <K> the type of keys maintained by this cache
  * @param <V> the type of mapped values
  */
-abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
-    implements LocalCache<K, V> {
+abstract class BoundedLocalCache<K extends Object, V extends Object>
+    extends BLCHeader.DrainStatusRef<K, V> implements LocalCache<K, V> {
 
   /*
    * This class performs a best-effort bounding of a ConcurrentHashMap using a page-replacement
@@ -1232,16 +1232,17 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
             @SuppressWarnings("unchecked")
             CompletableFuture<V> future = (CompletableFuture<V>) oldValue;
             if (Async.isReady(future)) {
-              @SuppressWarnings("NullAway")
-              var refresh = cacheLoader.asyncReload(key, future.join(), executor);
+              @SuppressWarnings({"NullAway", "unchecked"})
+              var refresh = (CompletableFuture<V>) cacheLoader.asyncReload(
+                  key, future.join(), executor);
               refreshFuture[0] = refresh;
             } else {
               // no-op if load is pending
               return future;
             }
           } else {
-            @SuppressWarnings("NullAway")
-            var refresh = cacheLoader.asyncReload(key, oldValue, executor);
+            @SuppressWarnings({"NullAway", "unchecked"})
+            var refresh = (CompletableFuture<V>) cacheLoader.asyncReload(key, oldValue, executor);
             refreshFuture[0] = refresh;
           }
           return refreshFuture[0];
@@ -3420,7 +3421,8 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
 
   /* --------------- Manual Cache --------------- */
 
-  static class BoundedLocalManualCache<K, V> implements LocalManualCache<K, V>, Serializable {
+  static class BoundedLocalManualCache<K extends Object, V extends Object>
+      implements LocalManualCache<K, V>, Serializable {
     private static final long serialVersionUID = 1;
 
     final BoundedLocalCache<K, V> cache;
@@ -3459,7 +3461,7 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
     }
   }
 
-  static final class BoundedPolicy<K, V> implements Policy<K, V> {
+  static final class BoundedPolicy<K extends Object, V extends Object> implements Policy<K, V> {
     final BoundedLocalCache<K, V> cache;
     final Function<V, V> transformer;
     final boolean isWeighted;
@@ -3790,7 +3792,7 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
 
   /* --------------- Loading Cache --------------- */
 
-  static final class BoundedLocalLoadingCache<K, V>
+  static final class BoundedLocalLoadingCache<K extends Object, V extends Object>
       extends BoundedLocalManualCache<K, V> implements LocalLoadingCache<K, V> {
     private static final long serialVersionUID = 1;
 
@@ -3839,7 +3841,8 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
 
   /* --------------- Async Cache --------------- */
 
-  static final class BoundedLocalAsyncCache<K, V> implements LocalAsyncCache<K, V>, Serializable {
+  static final class BoundedLocalAsyncCache<K extends Object, V extends Object>
+      implements LocalAsyncCache<K, V>, Serializable {
     private static final long serialVersionUID = 1;
 
     final BoundedLocalCache<K, CompletableFuture<V>> cache;
@@ -3901,7 +3904,7 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
 
   /* --------------- Async Loading Cache --------------- */
 
-  static final class BoundedLocalAsyncLoadingCache<K, V>
+  static final class BoundedLocalAsyncLoadingCache<K extends Object, V extends Object>
       extends LocalAsyncLoadingCache<K, V> implements Serializable {
     private static final long serialVersionUID = 1;
 
@@ -3976,7 +3979,7 @@ abstract class BoundedLocalCache<K, V> extends BLCHeader.DrainStatusRef<K, V>
         V newValue = (V) loader.asyncReload(key, oldValue, executor);
         return newValue;
       }
-      @Override public CompletableFuture<V> asyncReload(
+      @Override public CompletableFuture<? extends V> asyncReload(
           K key, V oldValue, Executor executor) throws Exception {
         return loader.asyncReload(key, oldValue, executor);
       }
@@ -4006,7 +4009,8 @@ final class BLCHeader {
   }
 
   /** Enforces a memory layout to avoid false sharing by padding the drain status. */
-  abstract static class DrainStatusRef<K, V> extends PadDrainStatus<K, V> {
+  abstract static class DrainStatusRef<K extends Object, V extends Object>
+      extends PadDrainStatus<K, V> {
     static final VarHandle DRAIN_STATUS;
 
     /** A drain is not taking place. */

@@ -34,7 +34,7 @@ final class References {
   private References() {}
 
   /** A weak or soft reference that includes the entry's key reference. */
-  interface InternalReference<E> {
+  interface InternalReference<E extends Object> {
 
     /**
      * Returns this reference object's referent. If this reference object has been cleared, either
@@ -78,7 +78,7 @@ final class References {
    * This {@linkplain InternalReference} implementation is not suitable for storing in the cache as
    * the key is strongly held.
    */
-  static final class LookupKeyReference<E> implements InternalReference<E> {
+  static final class LookupKeyReference<E extends Object> implements InternalReference<E> {
     private final int hashCode;
     private final E e;
 
@@ -113,7 +113,8 @@ final class References {
    * the advent that the key is reclaimed so that the entry can be removed from the cache in
    * constant time.
    */
-  static class WeakKeyReference<K> extends WeakReference<K> implements InternalReference<K> {
+  static class WeakKeyReference<K extends Object>
+      extends WeakReference<K> implements InternalReference<K> {
     private final int hashCode;
 
     public WeakKeyReference(@Nullable K key, @Nullable ReferenceQueue<K> queue) {
@@ -142,7 +143,7 @@ final class References {
    * the advent that the value is reclaimed so that the entry can be removed from the cache in
    * constant time.
    */
-  static final class WeakValueReference<V> extends WeakReference<V>
+  static final class WeakValueReference<V extends Object> extends WeakReference<V>
       implements InternalReference<V> {
     private final Object keyReference;
 
@@ -174,7 +175,7 @@ final class References {
    * the advent that the value is reclaimed so that the entry can be removed from the cache in
    * constant time.
    */
-  static final class SoftValueReference<V> extends SoftReference<V>
+  static final class SoftValueReference<V extends Object> extends SoftReference<V>
       implements InternalReference<V> {
     private final Object keyReference;
 

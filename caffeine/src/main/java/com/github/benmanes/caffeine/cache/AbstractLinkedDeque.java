@@ -28,7 +28,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @author ben.manes@gmail.com (Ben Manes)
  * @param <E> the type of elements held in this collection
  */
-abstract class AbstractLinkedDeque<E> extends AbstractCollection<E> implements LinkedDeque<E> {
+abstract class AbstractLinkedDeque<E extends Object>
+    extends AbstractCollection<E> implements LinkedDeque<E> {
 
   // This class provides a doubly-linked list that is optimized for the virtual machine. The first
   // and last elements are manipulated instead of a slightly more convenient sentinel element to

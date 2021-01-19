@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <K> the type of keys maintained by this cache
  * @param <V> the type of mapped values
  */
-public interface AsyncCache<K, V> {
+public interface AsyncCache<K extends Object, V extends Object> {
 
   /**
    * Returns the future associated with {@code key} in this cache, or {@code null} if there is no
@@ -93,7 +93,7 @@ public interface AsyncCache<K, V> {
    *         in which case the mapping is left unestablished
    */
   CompletableFuture<V> get(K key,
-      BiFunction<? super K, Executor, CompletableFuture<V>> mappingFunction);
+      BiFunction<? super K, ? super Executor, ? extends CompletableFuture<? extends V>> mappingFunction);
 
   /**
    * Returns the future of a map of the values associated with {@code keys}, creating or retrieving
@@ -119,7 +119,7 @@ public interface AsyncCache<K, V> {
    *         left unestablished
    */
   CompletableFuture<Map<K, V>> getAll(Iterable<? extends K> keys,
-      Function<Set<? extends K>, Map<K, V>> mappingFunction);
+      Function<? super Set<? extends K>, ? extends Map<? extends K, ? extends V>> mappingFunction);
 
   /**
    * Returns the future of a map of the values associated with {@code keys}, creating or retrieving
@@ -145,7 +145,8 @@ public interface AsyncCache<K, V> {
    *         left unestablished
    */
   CompletableFuture<Map<K, V>> getAll(Iterable<? extends K> keys,
-      BiFunction<Set<? extends K>, Executor, CompletableFuture<Map<K, V>>> mappingFunction);
+      BiFunction<? super Set<? extends K>, ? super Executor,
+          ? extends CompletableFuture<? extends Map<? extends K, ? extends V>>> mappingFunction);
 
   /**
    * Associates {@code value} with {@code key} in this cache. If the cache previously contained a
@@ -159,7 +160,7 @@ public interface AsyncCache<K, V> {
    * @param valueFuture value to be associated with the specified key
    * @throws NullPointerException if the specified key or value is null
    */
-  void put(K key, CompletableFuture<V> valueFuture);
+  void put(K key, CompletableFuture<? extends V> valueFuture);
 
   /**
    * Returns a view of the entries stored in this cache as a thread-safe map. Modifications made to

@@ -63,7 +63,7 @@ final class Async {
    * A removal listener that asynchronously forwards the value stored in a {@link CompletableFuture}
    * if successful to the user-supplied removal listener.
    */
-  static final class AsyncRemovalListener<K, V>
+  static final class AsyncRemovalListener<K extends Object, V extends Object>
       implements RemovalListener<K, CompletableFuture<V>>, Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -100,7 +100,8 @@ final class Async {
    * the expiration timeouts reflect the value once present. This can be done safely using
    * {@link Map#replace(Object, Object, Object)}.
    */
-  static final class AsyncWeigher<K, V> implements Weigher<K, CompletableFuture<V>>, Serializable {
+  static final class AsyncWeigher<K extends Object, V extends Object>
+      implements Weigher<K, CompletableFuture<V>>, Serializable {
     private static final long serialVersionUID = 1L;
 
     final Weigher<K, V> delegate;
@@ -126,7 +127,8 @@ final class Async {
    * expiration is updated and the expiration timeouts reflect the value once present. The value
    * maximum range is reserved to coordinate the asynchronous life cycle.
    */
-  static final class AsyncExpiry<K, V> implements Expiry<K, CompletableFuture<V>>, Serializable {
+  static final class AsyncExpiry<K extends Object, V extends Object>
+      implements Expiry<K, CompletableFuture<V>>, Serializable {
     private static final long serialVersionUID = 1L;
 
     final Expiry<K, V> delegate;

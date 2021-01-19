@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-public interface Policy<K, V> {
+public interface Policy<K extends Object, V extends Object> {
 
   /**
    * Returns whether the cache statistics are being accumulated.

@@ -23,7 +23,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-public interface Expiry<K, V> {
+public interface Expiry<K extends Object, V extends Object> {
 
   /**
    * Specifies that the entry should be automatically removed from the cache once the duration has

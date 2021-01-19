@@ -34,7 +34,7 @@ import java.util.Iterator;
  *
  * @author nitsanw@yahoo.com (Nitsan Wakart)
  */
-class MpscGrowableArrayQueue<E> extends MpscChunkedArrayQueue<E> {
+class MpscGrowableArrayQueue<E extends Object> extends MpscChunkedArrayQueue<E> {
 
   /**
    * @param initialCapacity the queue initial capacity. If chunk size is fixed this will be the

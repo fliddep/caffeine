@@ -29,7 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-final class SerializationProxy<K, V> implements Serializable {
+final class SerializationProxy<K extends Object, V extends Object> implements Serializable {
   private static final long serialVersionUID = 1;
 
   boolean async;

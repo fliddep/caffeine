@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * @param <E> the type of elements maintained by this buffer
  * @author ben.manes@gmail.com (Ben Manes)
  */
-interface Buffer<E> {
+interface Buffer<E extends Object> {
   int FULL = 1;
   int SUCCESS = 0;
   int FAILED = -1;

@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <K> the type of keys maintained by this cache
  * @param <V> the type of mapped values
  */
-public interface LoadingCache<K, V> extends Cache<K, V> {
+public interface LoadingCache<K extends Object, V extends Object> extends Cache<K, V> {
 
   /**
    * Returns the value associated with the {@code key} in this cache, obtaining that value from

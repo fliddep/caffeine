@@ -36,7 +36,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-interface LocalLoadingCache<K, V> extends LocalManualCache<K, V>, LoadingCache<K, V> {
+interface LocalLoadingCache<K extends Object, V extends Object>
+    extends LocalManualCache<K, V>, LoadingCache<K, V> {
   Logger logger = System.getLogger(LocalLoadingCache.class.getName());
 
   /** Returns the {@link CacheLoader} used by this cache. */
@@ -98,7 +99,7 @@ interface LocalLoadingCache<K, V> extends LocalManualCache<K, V>, LoadingCache<K
     @SuppressWarnings("unchecked")
     V[] oldValue = (V[]) new Object[1];
     @SuppressWarnings({"unchecked", "rawtypes"})
-    CompletableFuture<V>[] reloading = new CompletableFuture[1];
+    CompletableFuture<? extends V>[] reloading = new CompletableFuture[1];
     Object keyReference = cache().referenceKey(key);
 
     var future = cache().refreshes().compute(keyReference, (k, existing) -> {
@@ -109,7 +110,7 @@ interface LocalLoadingCache<K, V> extends LocalManualCache<K, V>, LoadingCache<K
       try {
         startTime[0] = cache().statsTicker().read();
         oldValue[0] = cache().getIfPresentQuietly(key, writeTime);
-        CompletableFuture<V> refreshFuture = (oldValue[0] == null)
+        CompletableFuture<? extends V> refreshFuture = (oldValue[0] == null)
             ? cacheLoader().asyncLoad(key, cache().executor())
             : cacheLoader().asyncReload(key, oldValue[0], cache().executor());
         reloading[0] = refreshFuture;

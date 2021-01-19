@@ -31,7 +31,8 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 @SuppressWarnings({"GuardedByChecker", "GuardedByValidator"})
-abstract class Node<K, V> implements AccessOrder<Node<K, V>>, WriteOrder<Node<K, V>> {
+abstract class Node<K extends Object, V extends Object>
+    implements AccessOrder<Node<K, V>>, WriteOrder<Node<K, V>> {
 
   /** Return the key or {@code null} if it has been reclaimed by the garbage collector. */
   @Nullable

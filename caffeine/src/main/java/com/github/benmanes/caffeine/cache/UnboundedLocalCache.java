@@ -56,7 +56,7 @@ import com.github.benmanes.caffeine.cache.stats.StatsCounter;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
+final class UnboundedLocalCache<K extends Object, V extends Object> implements LocalCache<K, V> {
   static final Logger logger = System.getLogger(UnboundedLocalCache.class.getName());
   static final VarHandle REFRESHES;
 
@@ -922,7 +922,8 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
   /* --------------- Manual Cache --------------- */
 
-  static class UnboundedLocalManualCache<K, V> implements LocalManualCache<K, V>, Serializable {
+  static class UnboundedLocalManualCache<K extends Object, V extends Object>
+      implements LocalManualCache<K, V>, Serializable {
     private static final long serialVersionUID = 1;
 
     final UnboundedLocalCache<K, V> cache;
@@ -960,7 +961,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
   }
 
   /** An eviction policy that supports no boundings. */
-  static final class UnboundedPolicy<K, V> implements Policy<K, V> {
+  static final class UnboundedPolicy<K extends Object, V extends Object> implements Policy<K, V> {
     final UnboundedLocalCache<K, V> cache;
     final Function<V, V> transformer;
 
@@ -993,8 +994,8 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
   /* --------------- Loading Cache --------------- */
 
-  static final class UnboundedLocalLoadingCache<K, V> extends UnboundedLocalManualCache<K, V>
-      implements LocalLoadingCache<K, V> {
+  static final class UnboundedLocalLoadingCache<K extends Object, V extends Object>
+      extends UnboundedLocalManualCache<K, V> implements LocalLoadingCache<K, V> {
     private static final long serialVersionUID = 1;
 
     final Function<K, V> mappingFunction;
@@ -1039,7 +1040,8 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
   /* --------------- Async Cache --------------- */
 
-  static final class UnboundedLocalAsyncCache<K, V> implements LocalAsyncCache<K, V>, Serializable {
+  static final class UnboundedLocalAsyncCache<K extends Object, V extends Object>
+      implements LocalAsyncCache<K, V>, Serializable {
     private static final long serialVersionUID = 1;
 
     final UnboundedLocalCache<K, CompletableFuture<V>> cache;
@@ -1099,7 +1101,7 @@ final class UnboundedLocalCache<K, V> implements LocalCache<K, V> {
 
   /* --------------- Async Loading Cache --------------- */
 
-  static final class UnboundedLocalAsyncLoadingCache<K, V>
+  static final class UnboundedLocalAsyncLoadingCache<K extends Object, V extends Object>
       extends LocalAsyncLoadingCache<K, V> implements Serializable {
     private static final long serialVersionUID = 1;
 

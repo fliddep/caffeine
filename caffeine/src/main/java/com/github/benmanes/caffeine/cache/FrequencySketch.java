@@ -26,7 +26,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-final class FrequencySketch<E> {
+final class FrequencySketch<E extends Object> {
 
   /*
    * This class maintains a 4-bit CountMinSketch [1] with periodic aging to provide the popularity

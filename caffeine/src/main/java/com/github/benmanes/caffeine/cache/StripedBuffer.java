@@ -42,7 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @author dl@cs.oswego.edu (Doug Lea)
  * @author ben.manes@gmail.com (Ben Manes)
  */
-abstract class StripedBuffer<E> implements Buffer<E> {
+abstract class StripedBuffer<E extends Object> implements Buffer<E> {
   /*
    * This class maintains a lazily-initialized table of atomically updated buffers. The table size
    * is a power of two. Indexing uses masked per-thread hash codes. Nearly all declarations in this

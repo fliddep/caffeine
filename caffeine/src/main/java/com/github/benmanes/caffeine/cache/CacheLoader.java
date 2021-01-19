@@ -43,7 +43,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @FunctionalInterface
 @SuppressWarnings({"PMD.SignatureDeclareThrowsException", "FunctionalInterfaceMethodChanged"})
-public interface CacheLoader<K, V> extends AsyncCacheLoader<K, V> {
+public interface CacheLoader<K extends Object, V extends Object> extends AsyncCacheLoader<K, V> {
 
   /**
    * Computes or retrieves the value corresponding to {@code key}.
@@ -83,7 +83,7 @@ public interface CacheLoader<K, V> extends AsyncCacheLoader<K, V> {
    *         treated like any other {@code Exception} in all respects except that, when it is
    *         caught, the thread's interrupt status is set
    */
-  default Map<K, V> loadAll(Set<? extends K> keys) throws Exception {
+  default Map<? extends K, ? extends V> loadAll(Set<? extends K> keys) throws Exception {
     throw new UnsupportedOperationException();
   }
 
@@ -95,7 +95,7 @@ public interface CacheLoader<K, V> extends AsyncCacheLoader<K, V> {
    * @return the future value associated with {@code key}
    */
   @Override
-  default CompletableFuture<V> asyncLoad(K key, Executor executor) {
+  default CompletableFuture<? extends V> asyncLoad(K key, Executor executor) {
     requireNonNull(key);
     requireNonNull(executor);
     return CompletableFuture.supplyAsync(() -> {
@@ -128,7 +128,8 @@ public interface CacheLoader<K, V> extends AsyncCacheLoader<K, V> {
    *         that key; <b>may not contain null values</b>
    */
   @Override
-  default CompletableFuture<Map<K, V>> asyncLoadAll(Set<? extends K> keys, Executor executor) {
+  default CompletableFuture<? extends Map<? extends K, ? extends V>> asyncLoadAll(
+      Set<? extends K> keys, Executor executor) {
     requireNonNull(keys);
     requireNonNull(executor);
     return CompletableFuture.supplyAsync(() -> {
@@ -179,7 +180,8 @@ public interface CacheLoader<K, V> extends AsyncCacheLoader<K, V> {
    *         {@code null} if the mapping is to be removed
    */
   @Override
-  default CompletableFuture<V> asyncReload(K key, V oldValue, Executor executor) throws Exception {
+  default CompletableFuture<? extends V> asyncReload(
+      K key, V oldValue, Executor executor) throws Exception {
     requireNonNull(key);
     requireNonNull(executor);
     return CompletableFuture.supplyAsync(() -> {
@@ -208,13 +210,14 @@ public interface CacheLoader<K, V> extends AsyncCacheLoader<K, V> {
    * @return a cache loader that delegates to the supplied {@code mappingFunction}
    * @throws NullPointerException if the mappingFunction is null
    */
-  static <K, V> CacheLoader<K, V> bulk(Function<Set<? extends K>, Map<K, V>> mappingFunction) {
+  static <K extends Object, V extends Object> CacheLoader<K, V> bulk(
+      Function<? super Set<? extends K>, ? extends Map<? extends K, ? extends V>> mappingFunction) {
     requireNonNull(mappingFunction);
     return new CacheLoader<K, V>() {
       @Override public @Nullable V load(K key) {
         return loadAll(Set.of(key)).get(key);
       }
-      @Override public Map<K, V> loadAll(Set<? extends K> keys) {
+      @Override public Map<? extends K, ? extends V> loadAll(Set<? extends K> keys) {
         return mappingFunction.apply(keys);
       }
     };

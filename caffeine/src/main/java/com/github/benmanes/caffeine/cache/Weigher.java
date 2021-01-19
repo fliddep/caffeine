@@ -30,7 +30,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 @FunctionalInterface
-public interface Weigher<K, V> {
+public interface Weigher<K extends Object, V extends Object> {
 
   /**
    * Returns the weight of a cache entry. There is no unit for entry weights; rather they are simply

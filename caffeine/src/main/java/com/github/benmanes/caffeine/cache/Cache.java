@@ -38,7 +38,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
  * @param <K> the type of keys maintained by this cache
  * @param <V> the type of mapped values
  */
-public interface Cache<K, V> {
+public interface Cache<K extends Object, V extends Object> {
 
   /**
    * Returns the value associated with the {@code key} in this cache, or {@code null} if there is no
@@ -118,7 +118,7 @@ public interface Cache<K, V> {
    *         left unestablished
    */
   Map<K, V> getAll(Iterable<? extends K> keys,
-      Function<Set<? extends K>, Map<K, V>> mappingFunction);
+      Function<? super Set<? extends K>, ? extends Map<? extends K, ? extends V>> mappingFunction);
 
   /**
    * Associates the {@code value} with the {@code key} in this cache. If the cache previously
@@ -144,7 +144,7 @@ public interface Cache<K, V> {
    * @throws NullPointerException if the specified map is null or the specified map contains null
    *         keys or values
    */
-  void putAll(Map<? extends K,? extends V> map);
+  void putAll(Map<? extends K, ? extends V> map);
 
   /**
    * Discards any cached value for the {@code key}. The behavior of this operation is undefined for

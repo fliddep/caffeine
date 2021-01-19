@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
  * @param <K> the type of keys maintained by this cache
  * @param <V> the type of mapped values
  */
-public interface AsyncLoadingCache<K, V> extends AsyncCache<K, V> {
+public interface AsyncLoadingCache<K extends Object, V extends Object> extends AsyncCache<K, V> {
 
   /**
    * Returns the future associated with {@code key} in this cache, obtaining that value from

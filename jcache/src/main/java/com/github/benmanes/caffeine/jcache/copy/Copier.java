@@ -32,7 +32,7 @@ public interface Copier {
    * @param <T> the type of object being copied
    * @return a copy of the object
    */
-  <T> T copy(T object, ClassLoader classLoader);
+  <T extends Object> T copy(T object, ClassLoader classLoader);
 
   /** @return a copy strategy that performs an identity function, for use by store-by-reference */
   static Copier identity() {

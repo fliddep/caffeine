@@ -32,7 +32,7 @@ import com.github.benmanes.caffeine.cache.stats.StatsCounter;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-interface LocalCache<K, V> extends ConcurrentMap<K, V> {
+interface LocalCache<K extends Object, V extends Object> extends ConcurrentMap<K, V> {
 
   /** Returns whether this cache has statistics enabled. */
   boolean isRecordingStats();

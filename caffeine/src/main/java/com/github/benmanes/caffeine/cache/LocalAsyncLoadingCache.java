@@ -37,13 +37,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-abstract class LocalAsyncLoadingCache<K, V>
+abstract class LocalAsyncLoadingCache<K extends Object, V extends Object>
     implements LocalAsyncCache<K, V>, AsyncLoadingCache<K, V> {
   static final Logger logger = System.getLogger(LocalAsyncLoadingCache.class.getName());
 
   @Nullable
-  final BiFunction<Set<? extends K>, Executor, CompletableFuture<Map<K, V>>> bulkMappingFunction;
-  final BiFunction<K, Executor, CompletableFuture<V>> mappingFunction;
+  final BiFunction<? super Set<? extends K>, ? super Executor, ? extends CompletableFuture<? extends Map<? extends K, ? extends V>>> bulkMappingFunction;
+  final BiFunction<? super K, ? super Executor, ? extends CompletableFuture<? extends V>> mappingFunction;
   final AsyncCacheLoader<K, V> loader;
 
   @Nullable LoadingCacheView<K, V> cacheView;
@@ -56,7 +56,7 @@ abstract class LocalAsyncLoadingCache<K, V>
   }
 
   /** Returns a mapping function that adapts to {@link AsyncCacheLoader#asyncLoad}. */
-  BiFunction<K, Executor, CompletableFuture<V>> newMappingFunction(
+  BiFunction<? super K, ? super Executor, ? extends CompletableFuture<? extends V>> newMappingFunction(
       AsyncCacheLoader<? super K, V> cacheLoader) {
     return (key, executor) -> {
       try {
@@ -77,17 +77,17 @@ abstract class LocalAsyncLoadingCache<K, V>
    * implemented.
    */
   @Nullable
-  BiFunction<Set<? extends K>, Executor, CompletableFuture<Map<K, V>>> newBulkMappingFunction(
-      AsyncCacheLoader<? super K, V> cacheLoader) {
+  BiFunction<? super Set<? extends K>, ? super Executor, ? extends CompletableFuture<Map<? extends K, ? extends V>>>
+  newBulkMappingFunction(AsyncCacheLoader<? super K, V> cacheLoader) {
     if (!canBulkLoad(cacheLoader)) {
       return null;
     }
     return (keysToLoad, executor) -> {
       try {
+        var loaded = cacheLoader.asyncLoadAll(keysToLoad, executor);
         @SuppressWarnings("unchecked")
-        var loaded = (CompletableFuture<Map<K, V>>) (Object) cacheLoader
-            .asyncLoadAll(keysToLoad, executor);
-        return loaded;
+        var castedLoaded = (CompletableFuture<Map<? extends K, ? extends V>>) loaded;
+        return castedLoaded;
       } catch (RuntimeException e) {
         throw e;
       } catch (InterruptedException e) {

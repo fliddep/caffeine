@@ -44,7 +44,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @author ben.manes@gmail.com (Ben Manes)
  * @param <E> the type of elements held in this collection
  */
-interface LinkedDeque<E> extends Deque<E> {
+interface LinkedDeque<E extends Object> extends Deque<E> {
 
   /**
    * Returns if the element is at the front of the deque.
