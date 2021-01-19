@@ -21,6 +21,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -62,6 +63,7 @@ final class References {
      * @param object the reference object with which to compare
      * @return {@code true} if this object is the same as the argument; {@code false} otherwise
      */
+    @EnsuresNonNullIf(expression="#1", result = true)
     default boolean referenceEquals(@Nullable Object object) {
       if (object == this) {
         return true;
@@ -98,7 +100,7 @@ final class References {
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       return referenceEquals(object);
     }
 
@@ -117,6 +119,7 @@ final class References {
       extends WeakReference<K> implements InternalReference<K> {
     private final int hashCode;
 
+    @SuppressWarnings("nullness")
     public WeakKeyReference(@Nullable K key, @Nullable ReferenceQueue<K> queue) {
       super(key, queue);
       hashCode = System.identityHashCode(key);
@@ -128,7 +131,7 @@ final class References {
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       return referenceEquals(object);
     }
 
@@ -147,6 +150,7 @@ final class References {
       implements InternalReference<V> {
     private final Object keyReference;
 
+    @SuppressWarnings("nullness")
     public WeakValueReference(Object keyReference,
         @Nullable V value, @Nullable ReferenceQueue<V> queue) {
       super(value, queue);
@@ -159,7 +163,7 @@ final class References {
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       return referenceEquals(object);
     }
 
@@ -179,6 +183,7 @@ final class References {
       implements InternalReference<V> {
     private final Object keyReference;
 
+    @SuppressWarnings("nullness")
     public SoftValueReference(Object keyReference,
         @Nullable V value, @Nullable ReferenceQueue<V> queue) {
       super(value, queue);
@@ -191,7 +196,7 @@ final class References {
     }
 
     @Override
-    public boolean equals(Object object) {
+    public boolean equals(@Nullable Object object) {
       return referenceEquals(object);
     }
 

@@ -15,8 +15,6 @@
  */
 package com.github.benmanes.caffeine.cache;
 
-import static com.github.benmanes.caffeine.cache.LocalLoadingCache.newBulkMappingFunction;
-import static com.github.benmanes.caffeine.cache.LocalLoadingCache.newMappingFunction;
 import static java.util.Objects.requireNonNull;
 
 import java.io.InvalidObjectException;
@@ -60,7 +58,7 @@ final class UnboundedLocalCache<K extends Object, V extends Object> implements L
   static final Logger logger = System.getLogger(UnboundedLocalCache.class.getName());
   static final VarHandle REFRESHES;
 
-  @Nullable final RemovalListener<K, V> removalListener;
+  final @Nullable RemovalListener<K, V> removalListener;
   final ConcurrentHashMap<K, V> data;
   final StatsCounter statsCounter;
   final boolean isRecordingStats;
@@ -71,7 +69,7 @@ final class UnboundedLocalCache<K extends Object, V extends Object> implements L
   @Nullable Set<K> keySet;
   @Nullable Collection<V> values;
   @Nullable Set<Entry<K, V>> entrySet;
-  @Nullable volatile ConcurrentMap<Object, CompletableFuture<?>> refreshes;
+  volatile @Nullable ConcurrentMap<Object, CompletableFuture<?>> refreshes;
 
   UnboundedLocalCache(Caffeine<? super K, ? super V> builder, boolean async) {
     this.data = new ConcurrentHashMap<>(builder.getInitialCapacity());

@@ -160,8 +160,7 @@ public interface CacheLoader<K extends Object, V extends Object> extends AsyncCa
    *         treated like any other {@code Exception} in all respects except that, when it is
    *         caught, the thread's interrupt status is set
    */
-  @Nullable
-  default V reload(K key, V oldValue) throws Exception {
+  default @Nullable V reload(K key, V oldValue) throws Exception {
     return load(key);
   }
 

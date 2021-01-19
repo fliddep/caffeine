@@ -105,8 +105,7 @@ final class FrequencySketch<E extends Object> {
    * @param e the element to count occurrences of
    * @return the estimated number of occurrences of the element; possibly zero but never negative
    */
-  @NonNegative
-  public int frequency(E e) {
+  public @NonNegative int frequency(E e) {
     if (isNotInitialized()) {
       return 0;
     }

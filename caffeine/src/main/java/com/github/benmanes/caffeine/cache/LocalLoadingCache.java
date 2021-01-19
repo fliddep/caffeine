@@ -21,6 +21,7 @@ import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -64,15 +65,16 @@ interface LocalLoadingCache<K extends Object, V extends Object>
 
   /** Sequentially loads each missing entry. */
   default Map<K, V> loadSequentially(Iterable<? extends K> keys) {
-    Map<K, V> result = new LinkedHashMap<>();
+    Map<K, @Nullable V> result = new LinkedHashMap<>();
     for (K key : keys) {
       result.put(key, null);
     }
 
     int count = 0;
     try {
-      for (var iter = result.entrySet().iterator(); iter.hasNext();) {
-        Map.Entry<K, V> entry = iter.next();
+      for (Iterator<Map.Entry<K, @Nullable V>> iter = result.entrySet().iterator();
+           iter.hasNext();) {
+        Map.Entry<K, @Nullable V> entry = iter.next();
         count++;
 
         V value = get(entry.getKey());
@@ -86,7 +88,10 @@ interface LocalLoadingCache<K extends Object, V extends Object>
       cache().statsCounter().recordMisses(result.size() - count);
       throw t;
     }
-    return Collections.unmodifiableMap(result);
+
+    @SuppressWarnings("nullness")
+    var unmodifiable = Collections.unmodifiableMap(result);
+    return unmodifiable;
   }
 
   @Override
@@ -97,7 +102,7 @@ interface LocalLoadingCache<K extends Object, V extends Object>
     long[] writeTime = new long[1];
     long[] startTime = new long[1];
     @SuppressWarnings("unchecked")
-    V[] oldValue = (V[]) new Object[1];
+    @Nullable V[] oldValue = (V[]) new Object[1];
     @SuppressWarnings({"unchecked", "rawtypes"})
     CompletableFuture<? extends V>[] reloading = new CompletableFuture[1];
     Object keyReference = cache().referenceKey(key);
@@ -110,6 +115,7 @@ interface LocalLoadingCache<K extends Object, V extends Object>
       try {
         startTime[0] = cache().statsTicker().read();
         oldValue[0] = cache().getIfPresentQuietly(key, writeTime);
+        @SuppressWarnings("nullness")
         CompletableFuture<? extends V> refreshFuture = (oldValue[0] == null)
             ? cacheLoader().asyncLoad(key, cache().executor())
             : cacheLoader().asyncReload(key, oldValue[0], cache().executor());
@@ -177,7 +183,7 @@ interface LocalLoadingCache<K extends Object, V extends Object>
   }
 
   /** Returns a mapping function that adapts to {@link CacheLoader#load}. */
-  static <K, V> Function<K, V> newMappingFunction(CacheLoader<? super K, V> cacheLoader) {
+  default Function<K, V> newMappingFunction(CacheLoader<? super K, V> cacheLoader) {
     return key -> {
       try {
         return cacheLoader.load(key);
@@ -193,7 +199,7 @@ interface LocalLoadingCache<K extends Object, V extends Object>
   }
 
   /** Returns a mapping function that adapts to {@link CacheLoader#loadAll}, if implemented. */
-  static <K, V> @Nullable Function<Set<? extends K>, Map<K, V>> newBulkMappingFunction(
+  default @Nullable Function<Set<? extends K>, Map<K, V>> newBulkMappingFunction(
       CacheLoader<? super K, V> cacheLoader) {
     if (!hasLoadAll(cacheLoader)) {
       return null;
@@ -215,9 +221,9 @@ interface LocalLoadingCache<K extends Object, V extends Object>
   }
 
   /** Returns whether the supplied cache loader has bulk load functionality. */
-  static boolean hasLoadAll(CacheLoader<?, ?> loader) {
+  default boolean hasLoadAll(CacheLoader<? super K, V> cacheLoader) {
     try {
-      Method classLoadAll = loader.getClass().getMethod("loadAll", Set.class);
+      Method classLoadAll = cacheLoader.getClass().getMethod("loadAll", Set.class);
       Method defaultLoadAll = CacheLoader.class.getMethod("loadAll", Set.class);
       return !classLoadAll.equals(defaultLoadAll);
     } catch (NoSuchMethodException | SecurityException e) {

@@ -124,7 +124,7 @@ interface LinkedDeque<E extends Object> extends Deque<E> {
     }
 
     /** Returns an iterator that selects the greater element from the backing iterators. */
-    static <E> PeekingIterator<E> comparing(PeekingIterator<E> first,
+    static <E extends Object> PeekingIterator<E> comparing(PeekingIterator<E> first,
           PeekingIterator<E> second, Comparator<E> comparator) {
       return new PeekingIterator<E>() {
         @Override public boolean hasNext() {
@@ -138,6 +138,7 @@ interface LinkedDeque<E extends Object> extends Deque<E> {
           }
           E o1 = first.peek();
           E o2 = second.peek();
+          @SuppressWarnings("nullness")
           boolean greaterOrEqual = (comparator.compare(o1, o2) >= 0);
           return greaterOrEqual ? first.next() : second.next();
         }
@@ -149,6 +150,7 @@ interface LinkedDeque<E extends Object> extends Deque<E> {
           }
           E o1 = first.peek();
           E o2 = second.peek();
+          @SuppressWarnings("nullness")
           boolean greaterOrEqual = (comparator.compare(o1, o2) >= 0);
           return greaterOrEqual ? first.peek() : second.peek();
         }
